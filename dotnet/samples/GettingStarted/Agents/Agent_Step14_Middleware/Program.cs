@@ -17,7 +17,7 @@ var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") ?? th
 var deploymentName = System.Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT_NAME") ?? "gpt-4o";
 
 // Get a client to create/retrieve server side agents with
-var azureOpenAIClient = new AzureOpenAIClient(new Uri(endpoint), new AzureCliCredential())
+var azureOpenAIClient = new AzureOpenAIClient(new Uri(endpoint), new VisualStudioCredential())
     .GetChatClient(deploymentName);
 
 [Description("Get the weather for a given location.")]
@@ -57,7 +57,7 @@ Console.WriteLine($"Pii filtered response: {piiResponse}");
 
 Console.WriteLine("\n\n=== Example 3: Agent function middleware ===");
 
-// Agent function middleware support is limited to agents that wraps a upstream ChatClientAgent or derived from it.
+// Agent function middleware support is limited to agents that wraps an upstream ChatClientAgent or derives from it.
 
 // Add Per-request tools
 var options = new ChatClientAgentRunOptions(new()

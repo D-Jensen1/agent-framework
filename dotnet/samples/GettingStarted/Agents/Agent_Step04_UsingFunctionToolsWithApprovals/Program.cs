@@ -24,7 +24,7 @@ static string GetWeather([Description("The location to get the weather for.")] s
 // Note that we are wrapping the function tool with ApprovalRequiredAIFunction to require user approval before invoking it.
 AIAgent agent = new AzureOpenAIClient(
     new Uri(endpoint),
-    new AzureCliCredential())
+    new VisualStudioCredential())
     .GetChatClient(deploymentName)
     .CreateAIAgent(instructions: "You are a helpful assistant", tools: [new ApprovalRequiredAIFunction(AIFunctionFactory.Create(GetWeather))]);
 
