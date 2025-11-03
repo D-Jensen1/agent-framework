@@ -6,6 +6,8 @@
 // approval workflows for sensitive function calls.
 
 using System.ComponentModel;
+using System.Diagnostics;
+//using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Azure.AI.OpenAI;
 using Azure.Identity;
@@ -41,6 +43,7 @@ var middlewareEnabledAgent = originalAgent
     .AsBuilder()
     .Use(FunctionCallMiddleware)
     .Use(FunctionCallOverrideWeather)
+    .Use(MeasureResponseTime, null)
     .Use(PIIMiddleware, null)
     .Use(GuardrailMiddleware, null)
     .Build();
@@ -52,7 +55,7 @@ var guardRailedResponse = await middlewareEnabledAgent.RunAsync("Tell me somethi
 Console.WriteLine($"Guard railed response: {guardRailedResponse}");
 
 Console.WriteLine("\n\n=== Example 2: PII detection ===");
-var piiResponse = await middlewareEnabledAgent.RunAsync("My name is John Doe, call me at 123-456-7890 or email me at john@something.com");
+var piiResponse = await middlewareEnabledAgent.RunAsync("My name is John Doe, call me at 123-456-7890 or email me at john@something.com. Tell me a joke using my name.");
 Console.WriteLine($"Pii filtered response: {piiResponse}");
 
 Console.WriteLine("\n\n=== Example 3: Agent function middleware ===");
@@ -65,7 +68,7 @@ var options = new ChatClientAgentRunOptions(new()
     Tools = [AIFunctionFactory.Create(GetWeather, name: nameof(GetWeather))]
 });
 
-var functionCallResponse = await middlewareEnabledAgent.RunAsync("What's the current time and the weather in Seattle?", thread, options);
+var functionCallResponse = await middlewareEnabledAgent.RunAsync("What's the current time and the weather in Seattle in fahrenheit?", thread, options);
 Console.WriteLine($"Function calling response: {functionCallResponse}");
 
 // Special per-request middleware agent.
@@ -135,14 +138,14 @@ async Task<AgentRunResponse> PIIMiddleware(IEnumerable<ChatMessage> messages, Ag
 {
     // Redact PII information from input messages
     var filteredMessages = FilterMessages(messages);
-    Console.WriteLine("Pii Middleware - Filtered Messages Pre-Run");
+    Console.WriteLine("Pii Middleware - Filtered Messages Pre-Run - 1");
 
     var response = await innerAgent.RunAsync(filteredMessages, thread, options, cancellationToken).ConfigureAwait(false);
 
     // Redact PII information from output messages
     response.Messages = FilterMessages(response.Messages);
 
-    Console.WriteLine("Pii Middleware - Filtered Messages Post-Run");
+    Console.WriteLine("Pii Middleware - Filtered Messages Post-Run - 6");
 
     return response;
 
@@ -175,7 +178,7 @@ async Task<AgentRunResponse> GuardrailMiddleware(IEnumerable<ChatMessage> messag
     // Redact keywords from input messages
     var filteredMessages = FilterMessages(messages);
 
-    Console.WriteLine("Guardrail Middleware - Filtered messages Pre-Run");
+    Console.WriteLine("Guardrail Middleware - Filtered messages Pre-Run - 2");
 
     // Proceed with the agent run
     var response = await innerAgent.RunAsync(filteredMessages, thread, options, cancellationToken);
@@ -183,7 +186,7 @@ async Task<AgentRunResponse> GuardrailMiddleware(IEnumerable<ChatMessage> messag
     // Redact keywords from output messages
     response.Messages = FilterMessages(response.Messages);
 
-    Console.WriteLine("Guardrail Middleware - Filtered messages Post-Run");
+    Console.WriteLine("Guardrail Middleware - Filtered messages Post-Run - 5");
 
     return response;
 
@@ -198,12 +201,22 @@ async Task<AgentRunResponse> GuardrailMiddleware(IEnumerable<ChatMessage> messag
         {
             if (content.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
-                return "[REDACTED: Forbidden content]";
+                return "Give me a happy thought.";
             }
         }
 
         return content;
     }
+}
+
+async Task<AgentRunResponse> MeasureResponseTime(IEnumerable<ChatMessage> message, AgentThread? thread, AgentRunOptions? options, AIAgent innerAgent, CancellationToken cancellationToken)
+{
+    Stopwatch stopwatch = new();
+    stopwatch.Start();
+    var response = await innerAgent.RunAsync(message, thread, options, cancellationToken);
+    stopwatch.Stop();
+    Console.WriteLine($"Processing Time: {stopwatch.Elapsed}");
+    return response;
 }
 
 // This middleware handles Human in the loop console interaction for any user approval required during function calling.
@@ -240,9 +253,9 @@ async Task<AgentRunResponse> ConsolePromptingApprovalMiddleware(IEnumerable<Chat
 // This is useful for handling agent messages before they are sent to the LLM and also handle any response messages from the LLM before they are sent back to the agent.
 async Task<ChatResponse> ChatClientMiddleware(IEnumerable<ChatMessage> message, ChatOptions? options, IChatClient innerChatClient, CancellationToken cancellationToken)
 {
-    Console.WriteLine("Chat Client Middleware - Pre-Chat");
+    Console.WriteLine("Chat Client Middleware - Pre-Chat - 3");
     var response = await innerChatClient.GetResponseAsync(message, options, cancellationToken);
-    Console.WriteLine("Chat Client Middleware - Post-Chat");
+    Console.WriteLine("Chat Client Middleware - Post-Chat - 4");
 
     return response;
 }
